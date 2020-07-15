@@ -14,7 +14,18 @@ class OrganizationQuerySet(models.QuerySet):
 
         :type root_org_id: int
         """
-        return self.filter()
+        query = "with recursive tree(id, name, code, parent_id)\
+                as (select id, name, code, parent_id      \
+                from orgunits_organization\
+                where id = %s        \
+                union all\
+                select orgunits_organization.id, orgunits_organization.name, \
+                       orgunits_organization.code, orgunits_organization.parent_id \
+                from orgunits_organization \
+                    inner join tree on tree.id = orgunits_organization.parent_id) \
+                select id from tree \
+                "
+        return self.filter(id__in=RawSQL(query, [root_org_id]))
 
     def tree_upwards(self, child_org_id):
         """
@@ -23,7 +34,18 @@ class OrganizationQuerySet(models.QuerySet):
 
         :type child_org_id: int
         """
-        return self.filter()
+        query = "with recursive tree(id, name, code, parent_id) \
+                as (select id, name, code, parent_id             \
+                    from orgunits_organization \
+                    where id = %s        \
+                union all \
+                    select orgunits_organization.id, orgunits_organization.name, \
+                           orgunits_organization.code, orgunits_organization.parent_id \
+                    from orgunits_organization \
+                        inner join tree on tree.parent_id = orgunits_organization.id) \
+                select id from tree \
+                "
+        return self.filter(id__in=RawSQL(query, [child_org_id]))
 
 
 class Organization(models.Model):
@@ -42,6 +64,9 @@ class Organization(models.Model):
         verbose_name_plural = "Организация"
         verbose_name = "Организации"
 
+    def __str__(self):
+        return self.name
+
     def parents(self):
         """
         Возвращает всех родителей любого уровня вложенности
@@ -49,6 +74,7 @@ class Organization(models.Model):
 
         :rtype: django.db.models.QuerySet
         """
+        return Organization.objects.tree_upwards(self.id).exclude(id=self.id)
 
     def children(self):
         """
@@ -57,3 +83,4 @@ class Organization(models.Model):
 
         :rtype: django.db.models.QuerySet
         """
+        return Organization.objects.tree_downwards(self.id).exclude(id=self.id)
