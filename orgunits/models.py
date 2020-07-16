@@ -14,16 +14,18 @@ class OrganizationQuerySet(models.QuerySet):
 
         :type root_org_id: int
         """
-        query = "with recursive tree(id, name, code, parent_id)\
-                as (select id, name, code, parent_id      \
-                from orgunits_organization\
-                where id = %s        \
-                union all\
-                select orgunits_organization.id, orgunits_organization.name, \
-                       orgunits_organization.code, orgunits_organization.parent_id \
-                from orgunits_organization \
-                    inner join tree on tree.id = orgunits_organization.parent_id) \
-                select id from tree \
+        query = "WITH RECURSIVE tree(id, name, code, parent_id)               \
+                AS (SELECT id, name, code, parent_id                          \
+                    FROM orgunits_organization                                \
+                    WHERE id = %s                                             \
+                UNION ALL                                                     \
+                SELECT orgunits_organization.id,                              \
+                    orgunits_organization.name,                               \
+                    orgunits_organization.code,                               \
+                    orgunits_organization.parent_id                           \
+                FROM orgunits_organization                                    \
+                INNER JOIN tree ON tree.id = orgunits_organization.parent_id) \
+                SELECT id FROM tree                                           \
                 "
         return self.filter(id__in=RawSQL(query, [root_org_id]))
 
@@ -34,16 +36,18 @@ class OrganizationQuerySet(models.QuerySet):
 
         :type child_org_id: int
         """
-        query = "with recursive tree(id, name, code, parent_id) \
-                as (select id, name, code, parent_id             \
-                    from orgunits_organization \
-                    where id = %s        \
-                union all \
-                    select orgunits_organization.id, orgunits_organization.name, \
-                           orgunits_organization.code, orgunits_organization.parent_id \
-                    from orgunits_organization \
-                        inner join tree on tree.parent_id = orgunits_organization.id) \
-                select id from tree \
+        query = "WITH RECURSIVE tree(id, name, code, parent_id)               \
+                AS (SELECT id, name, code, parent_id                          \
+                    FROM orgunits_organization                                \
+                    WHERE id = %s                                             \
+                UNION ALL                                                     \
+                    SELECT orgunits_organization.id,                          \
+                           orgunits_organization.name,                        \
+                           orgunits_organization.code,                        \
+                           orgunits_organization.parent_id                    \
+                FROM orgunits_organization                                    \
+                INNER JOIN tree ON tree.parent_id = orgunits_organization.id) \
+                SELECT id FROM tree                                           \
                 "
         return self.filter(id__in=RawSQL(query, [child_org_id]))
 
